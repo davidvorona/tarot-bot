@@ -4,4 +4,4 @@ node_modules/
 dist/
 data/
 config/auth.json
-config/config.json
+tsconfig.tsbuildinfo
