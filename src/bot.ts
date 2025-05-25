@@ -40,43 +40,34 @@ const readings: Record<string, Reading> = {};
 client.on(Events.InteractionCreate, async (interaction) => {
     try {
         if (interaction.isChatInputCommand()) {
-            try {
-                if (interaction.commandName === "ping") {
-                    await interaction.reply("Pong!");
-                }
-                if (interaction.commandName === "reading") {
-                    const user = interaction.options.getUser("user", true);
+            if (interaction.commandName === "ping") {
+                await interaction.reply("Pong!");
+            }
+            if (interaction.commandName === "reading") {
+                const user = interaction.options.getUser("user", true);
 
-                    const reading = new Reading(user.id);
-                    readings[reading.id] = reading;
+                const reading = new Reading(user.id);
+                readings[reading.id] = reading;
 
-                    const embed = new EmbedBuilder()
-                        .setColor(0x0099FF)
-                        .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
-                        .setDescription("Today is a new day, full of endless possibilities. Let the Tarot guide you, " +
-                            `so you might pass on its wisdom to **${user.username}**.\nShuffle the deck to begin...`)
-                        .setThumbnail(user.displayAvatarURL());
-                    const shuffleDeckButton = new ButtonBuilder()
-                        .setCustomId(`${reading.id}-shuffle`)
-                        .setLabel("Shuffle the Deck")
-                        .setStyle(ButtonStyle.Primary);
-                    const row = new ActionRowBuilder<ButtonBuilder>()
-                        .addComponents(
-                            shuffleDeckButton
-                        );
-                    await interaction.reply({
-                        embeds: [embed],
-                        components: [row],
-                        ephemeral: true
-                    });
-                }
-            } catch (err) {
-                console.error("Error handling interaction:", err);
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: "An error occurred while processing your request.", ephemeral: true });
-                } else {
-                    await interaction.reply({ content: "An error occurred while processing your request.", ephemeral: true });
-                }
+                const embed = new EmbedBuilder()
+                    .setColor(0x0099FF)
+                    .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
+                    .setDescription("Today is a new day, full of endless possibilities. Let the Tarot guide you, " +
+                        `so you might pass on its wisdom to **${user.username}**.\nShuffle the deck to begin...`)
+                    .setThumbnail(user.displayAvatarURL());
+                const shuffleDeckButton = new ButtonBuilder()
+                    .setCustomId(`${reading.id}-shuffle`)
+                    .setLabel("Shuffle the Deck")
+                    .setStyle(ButtonStyle.Primary);
+                const row = new ActionRowBuilder<ButtonBuilder>()
+                    .addComponents(
+                        shuffleDeckButton
+                    );
+                await interaction.reply({
+                    embeds: [embed],
+                    components: [row],
+                    ephemeral: true
+                });
             }
         }
         if (interaction.isButton()) {
