@@ -1,4 +1,4 @@
-import { Client, IntentsBitField, Events, REST, Routes, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder } from "discord.js";
+import { Client, IntentsBitField, Events, REST, Routes, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, TextInputStyle, ModalActionRowComponentBuilder, TextInputBuilder, ModalBuilder } from "discord.js";
 import Canvas from "@napi-rs/canvas";
 import path from "path";
 import { parseJson, readFile } from "./util";
@@ -38,144 +38,171 @@ client.on(Events.ClientReady, async () => {
 const readings: Record<string, Reading> = {};
 
 client.on(Events.InteractionCreate, async (interaction) => {
-    if (interaction.isChatInputCommand()) {
-        try {
-            if (interaction.commandName === "ping") {
-                await interaction.reply("Pong!");
-            }
-            if (interaction.commandName === "reading") {
-                const user = interaction.options.getUser("user", true);
+    try {
+        if (interaction.isChatInputCommand()) {
+            try {
+                if (interaction.commandName === "ping") {
+                    await interaction.reply("Pong!");
+                }
+                if (interaction.commandName === "reading") {
+                    const user = interaction.options.getUser("user", true);
 
-                const reading = new Reading(user.id);
-                readings[reading.id] = reading;
+                    const reading = new Reading(user.id);
+                    readings[reading.id] = reading;
 
-                const embed = new EmbedBuilder()
-                    .setColor(0x0099FF)
-                    .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
-                    .setDescription("Today is a new day, full of endless possibilities. Let the Tarot guide you, " +
-                        `so you might pass on its wisdom to **${user.username}**.\nShuffle the deck to begin...`)
-                    .setThumbnail(user.displayAvatarURL());
-                const shuffleDeckButton = new ButtonBuilder()
-                    .setCustomId(`${reading.id}-shuffle`)
-                    .setLabel("Shuffle the Deck")
-                    .setStyle(ButtonStyle.Primary);
-                const row = new ActionRowBuilder<ButtonBuilder>()
-                    .addComponents(
-                        shuffleDeckButton
-                    );
-                await interaction.reply({
-                    embeds: [embed],
-                    components: [row],
-                    ephemeral: true
-                });
-            }
-        } catch (err) {
-            console.error("Error handling interaction:", err);
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: "An error occurred while processing your request.", ephemeral: true });
-            } else {
-                await interaction.reply({ content: "An error occurred while processing your request.", ephemeral: true });
+                    const embed = new EmbedBuilder()
+                        .setColor(0x0099FF)
+                        .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
+                        .setDescription("Today is a new day, full of endless possibilities. Let the Tarot guide you, " +
+                            `so you might pass on its wisdom to **${user.username}**.\nShuffle the deck to begin...`)
+                        .setThumbnail(user.displayAvatarURL());
+                    const shuffleDeckButton = new ButtonBuilder()
+                        .setCustomId(`${reading.id}-shuffle`)
+                        .setLabel("Shuffle the Deck")
+                        .setStyle(ButtonStyle.Primary);
+                    const row = new ActionRowBuilder<ButtonBuilder>()
+                        .addComponents(
+                            shuffleDeckButton
+                        );
+                    await interaction.reply({
+                        embeds: [embed],
+                        components: [row],
+                        ephemeral: true
+                    });
+                }
+            } catch (err) {
+                console.error("Error handling interaction:", err);
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.followUp({ content: "An error occurred while processing your request.", ephemeral: true });
+                } else {
+                    await interaction.reply({ content: "An error occurred while processing your request.", ephemeral: true });
+                }
             }
         }
-    }
-    if (interaction.isButton()) {
-        const [readingId, action] = interaction.customId.split("-");
-        if (action === "shuffle") {
-            const reading = readings[readingId];
-            const user = client.users.cache.get(reading.userId);
-            if (user) {
-                const embed = new EmbedBuilder()
-                    .setColor(0x0099FF)
-                    .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
-                    .setDescription("The deck has been shuffled. You can now draw a card.")
-                    .setThumbnail(user.displayAvatarURL());
-                const drawCardButton = new ButtonBuilder()
-                    .setCustomId(`${reading.id}-drawing`)
-                    .setLabel("Draw a Card")
-                    .setStyle(ButtonStyle.Primary);
-                const row = new ActionRowBuilder<ButtonBuilder>()
-                    .addComponents(
-                        drawCardButton
-                    );
-                await interaction.update({
-                    embeds: [embed],
-                    components: [row]
-                });
-            } else {
-                await interaction.reply({ content: "User not found.", ephemeral: true });
-            }
-        }
-        if (action === "drawing") {
-            const reading = readings[readingId];
-            const user = client.users.cache.get(reading.userId);
-            if (user) {
-                const card = reading.draw();
-
-                const file = new AttachmentBuilder(`./assets/${card.image}`);
-                const embed = new EmbedBuilder()
-                    .setColor(0x0099FF)
-                    .setTitle(`:sparkles: Your Card for ${user.username} :star_and_crescent:`)
-                    .setDescription(`You drew **${card.name}**!\n${card.description}`)
-                    .setThumbnail(user.displayAvatarURL())
-                    .setImage(`attachment://${card.image}`);
-                const buttons = [];
-                if (reading.drawn.length < 7) {
-                    buttons.push(new ButtonBuilder()
+        if (interaction.isButton()) {
+            const [readingId, action] = interaction.customId.split("-");
+            if (action === "shuffle") {
+                const reading = readings[readingId];
+                const user = client.users.cache.get(reading.userId);
+                if (user) {
+                    const embed = new EmbedBuilder()
+                        .setColor(0x0099FF)
+                        .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
+                        .setDescription("The deck has been shuffled. You can now draw a card.")
+                        .setThumbnail(user.displayAvatarURL());
+                    const drawCardButton = new ButtonBuilder()
                         .setCustomId(`${reading.id}-drawing`)
-                        .setLabel("Draw Another Card")
-                        .setStyle(ButtonStyle.Primary));
+                        .setLabel("Draw a Card")
+                        .setStyle(ButtonStyle.Primary);
+                    const row = new ActionRowBuilder<ButtonBuilder>()
+                        .addComponents(
+                            drawCardButton
+                        );
+                    await interaction.update({
+                        embeds: [embed],
+                        components: [row]
+                    });
+                } else {
+                    await interaction.reply({ content: "User not found.", ephemeral: true });
                 }
-                if (reading.drawn.length > 2) {
-                    buttons.push(new ButtonBuilder()
-                        .setCustomId(`${reading.id}-finished`)
-                        .setLabel("End Reading")
-                        .setStyle(ButtonStyle.Success));
+            }
+            if (action === "drawing") {
+                const reading = readings[readingId];
+                const user = client.users.cache.get(reading.userId);
+                if (user) {
+                    const card = reading.draw();
+
+                    const file = new AttachmentBuilder(`./assets/${card.image}`);
+                    const embed = new EmbedBuilder()
+                        .setColor(0x0099FF)
+                        .setTitle(`:sparkles: Your Card for ${user.username} :star_and_crescent:`)
+                        .setDescription(`You drew **${card.name}**!\n${card.description}`)
+                        .setThumbnail(user.displayAvatarURL())
+                        .setImage(`attachment://${card.image}`);
+                    const buttons = [
+                        new ButtonBuilder()
+                            .setCustomId(`${reading.id}-interpret`)
+                            .setLabel("Interpret")
+                            .setStyle(ButtonStyle.Secondary),
+                    ];
+                    if (reading.drawn.length < 7) {
+                        buttons.push(new ButtonBuilder()
+                            .setCustomId(`${reading.id}-drawing`)
+                            .setLabel("Draw Another Card")
+                            .setStyle(ButtonStyle.Primary));
+                    }
+                    if (reading.drawn.length > 2) {
+                        buttons.push(new ButtonBuilder()
+                            .setCustomId(`${reading.id}-finished`)
+                            .setLabel("End Reading")
+                            .setStyle(ButtonStyle.Success));
+                    }
+                    const row = new ActionRowBuilder<ButtonBuilder>()
+                        .addComponents(...buttons);
+                    await interaction.update({
+                        embeds: [embed],
+                        components: [row],
+                        files: [file]
+                    });
+                } else {
+                    await interaction.reply({ content: "User not found.", ephemeral: true });
                 }
-                const row = new ActionRowBuilder<ButtonBuilder>()
-                    .addComponents(...buttons);
-                await interaction.update({
-                    embeds: [embed],
-                    components: [row],
-                    files: [file]
-                });
-            } else {
-                await interaction.reply({ content: "User not found.", ephemeral: true });
             }
-        }
-        if (action === "finished") {
-            const reading = readings[readingId];
-            const user = client.users.cache.get(reading.userId);
-            if (user) {
-                const cardMeanings = reading.getSpreadMeanings();
-                const fields = reading.drawn.map((card, idx) => {
-                    return { name: `${cardMeanings[idx] || `Card ${idx + 1}`}`, value: `${card.name}: *${card.description}*` };
-                });
-                const embed = new EmbedBuilder()
-                    .setColor(0x0099FF)
-                    .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
-                    .setDescription(`Your reading is complete. ${reading.getSpreadDescription()}`)
-                    .addFields(fields)
-                    .setThumbnail(user.displayAvatarURL());
-                const shareButton = new ButtonBuilder()
-                    .setCustomId(`${reading.id}-share`)
-                    .setLabel("Share Reading")
-                    .setStyle(ButtonStyle.Success);
-                const row = new ActionRowBuilder<ButtonBuilder>()
-                    .addComponents(shareButton);
-                await interaction.update({
-                    embeds: [embed],
-                    components: [row],
-                    files: [],
-                });
-            } else {
-                await interaction.reply({ content: "User not found.", ephemeral: true });
+            if (action === "interpret") {
+                const reading = readings[readingId];
+                const user = client.users.cache.get(reading.userId);
+                if (user) {
+                    const card = reading.getLastDrawn()!;
+
+                    const modal = new ModalBuilder()
+                        .setCustomId(`${reading.id}-interpretation-${reading.drawn.length - 1}`)
+                        .setTitle(`Interpretation of ${card.name}`);
+                    const interpretationInput = new TextInputBuilder()
+                        .setCustomId(`${reading.id}-interpretation`)
+                        .setLabel("What is your interpretation of this card?")
+                        .setStyle(TextInputStyle.Paragraph);
+                    const firstActionRow = new ActionRowBuilder<ModalActionRowComponentBuilder>()
+                        .addComponents(interpretationInput);
+                    modal.addComponents(firstActionRow);
+
+                    await interaction.showModal(modal);
+                } else {
+                    await interaction.reply({ content: "User not found.", ephemeral: true });
+                } 
             }
-        }
-        if (action === "share") {
-            const reading = readings[readingId];
-            const user = client.users.cache.get(reading.userId);
-            if (user) {
-                if (reading) {
+            if (action === "finished") {
+                const reading = readings[readingId];
+                const user = client.users.cache.get(reading.userId);
+                if (user) {
+                    const cardMeanings = reading.getSpreadMeanings();
+                    const fields = reading.drawn.map((card, idx) => {
+                        return { name: `${cardMeanings[idx] || `Card ${idx + 1}`}`, value: `${card.name}: *${card.description}*` };
+                    });
+                    const embed = new EmbedBuilder()
+                        .setColor(0x0099FF)
+                        .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
+                        .setDescription(`Your reading is complete. ${reading.getSpreadDescription()}`)
+                        .addFields(fields)
+                        .setThumbnail(user.displayAvatarURL());
+                    const shareButton = new ButtonBuilder()
+                        .setCustomId(`${reading.id}-share`)
+                        .setLabel("Share Reading")
+                        .setStyle(ButtonStyle.Success);
+                    const row = new ActionRowBuilder<ButtonBuilder>()
+                        .addComponents(shareButton);
+                    await interaction.update({
+                        embeds: [embed],
+                        components: [row],
+                        files: [],
+                    });
+                } else {
+                    await interaction.reply({ content: "User not found.", ephemeral: true });
+                }
+            }
+            if (action === "share") {
+                const reading = readings[readingId];
+                const user = client.users.cache.get(reading.userId);
+                if (user) {
                     const embed = new EmbedBuilder()
                         .setColor(0x0099FF)
                         .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
@@ -203,7 +230,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
                         const attachment = new AttachmentBuilder(await canvas.encode("png"), { name: "tarot-reading.png" });
                         const cardMeanings = reading.getSpreadMeanings();
                         const fields = reading.drawn.map((card, idx) => {
-                            return { name: `${cardMeanings[idx] || `Card ${idx + 1}`}`, value: `${card.name}: *${card.description}*` };
+                            let interpretation = card.description;
+                            if (reading.interpretations[idx]) {
+                                interpretation += ` ${reading.interpretations[idx]}`;
+                            }
+                            return {
+                                name: `${cardMeanings[idx] || `Card ${idx + 1}`}`,
+                                value: `${card.name}: *${interpretation}*`
+                            };
                         });
                         const embed = new EmbedBuilder()
                             .setColor(0x0099FF)
@@ -219,11 +253,30 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     }
                     delete readings[reading.id];
                 } else {
-                    await interaction.reply({ content: "No reading found for this user.", ephemeral: true });
+                    await interaction.reply({ content: "User not found.", ephemeral: true });
                 }
+            }
+        }
+        if (interaction.isModalSubmit()) {
+            const [readingId, action] = interaction.customId.split("-");
+            const reading = readings[readingId];
+            if (action === "interpretation") {
+                const drawnIndex = interaction.customId.split("-")[2];
+                const interpretation = interaction.fields.getTextInputValue(`${reading.id}-interpretation`);
+                reading.interpret(parseInt(drawnIndex), interpretation);
+                await interaction.reply({ content: "*The card speaks to you, and you listen...*", ephemeral: true });
             } else {
                 await interaction.reply({ content: "User not found.", ephemeral: true });
             }
+        }
+    } catch (err) {
+        console.error("Error handling interaction:", err);
+        if (interaction.isAutocomplete()) {
+            await interaction.respond([]);
+        } else if (interaction.replied || interaction.deferred) {
+            await interaction.followUp({ content: "An error occurred while processing your request.", ephemeral: true });
+        } else {
+            await interaction.reply({ content: "An error occurred while processing your request.", ephemeral: true });
         }
     }
 });
