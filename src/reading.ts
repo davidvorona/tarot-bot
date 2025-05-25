@@ -283,7 +283,7 @@ const tarotDeck = [
     },
     {
         name: "Seven of Swords",
-        description: "Self confidence, being grateful, strength, cunning, strategy, utilizing the resources you have.",
+        description: "Self-confidence, being grateful, strength, cunning, strategy, utilizing the resources you have.",
         image: "7-of-swords.jpg",
     },
     {
