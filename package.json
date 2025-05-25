@@ -1,0 +1,26 @@
+{
+  "name": "tarot-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc --build",
+    "clean": "tsc --build --clean",
+    "prestart": "npm run build",
+    "start": "node dist/bot.js",
+    "start-dev": "DEV_MODE=true node dist/bot.js"
+  },
+  "author": "David Vorona",
+  "license": "ISC",
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.70",
+    "discord.js": "^14.14.1"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.0.2",
+    "@typescript-eslint/parser": "^7.0.2",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3"
+  }
+}
