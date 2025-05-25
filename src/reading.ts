@@ -135,4 +135,27 @@ export default class Reading {
         this.deck.splice(drawnIndex, 1);
         return card;
     }
+
+    getSpreadMeanings() {
+        const cardMeanings: string[] = [];
+        if (this.drawn.length === 3) {
+            cardMeanings.push("Past", "Present", "Future");
+        } else if (this.drawn.length === 7) {
+            cardMeanings.push("Past Influences", "Present Circumstances", "Upcoming Influences",
+                "Best Course of Action", "The Attitude of Others", "Possible Obstacles", "Final Outcome");
+        }
+        return cardMeanings;
+    }
+
+    getSpreadDescription() {
+        let spreadDescription = "Here are your cards:";
+        if (this.drawn.length === 3) {
+            spreadDescription = "You've completed a **past-present-future spread**.";
+        } else if (this.drawn.length === 5) {
+            spreadDescription = "You've completed a **five-card spread**, ideal for checking in with one's emotional and mental clarity.";
+        } else if (this.drawn.length === 7) {
+            spreadDescription = "You've completed a **horseshoe spread**, providing much insight into one's life.";
+        }
+        return spreadDescription;
+    }
 }

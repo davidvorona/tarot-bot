@@ -146,25 +146,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
             const reading = readings[readingId];
             const user = client.users.cache.get(reading.userId);
             if (user) {
-                let spreadDescription = "Here are your cards:";
-                const cardMeanings: string[] = [];
-                if (reading.drawn.length === 3) {
-                    spreadDescription = "You've completed a **past-present-future spread**.";
-                    cardMeanings.push("Past", "Present", "Future");
-                } else if (reading.drawn.length === 5) {
-                    spreadDescription = "You've completed a **five-card spread**, ideal for checking in with one's emotional and mental clarity.";
-                } else if (reading.drawn.length === 7) {
-                    cardMeanings.push("Past Influences", "Present Circumstances", "Upcoming Influences",
-                        "Best Course of Action", "The Attitude of Others", "Possible Obstacles", "Final Outcome");
-                    spreadDescription = "You've completed a **horseshoe spread**, providing much insight into one's life.";
-                }
+                const cardMeanings = reading.getSpreadMeanings();
                 const fields = reading.drawn.map((card, idx) => {
                     return { name: `${cardMeanings[idx] || `Card ${idx + 1}`}`, value: `${card.name}: *${card.description}*` };
                 });
                 const embed = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
-                    .setDescription(`Your reading is complete. ${spreadDescription}`)
+                    .setDescription(`Your reading is complete. ${reading.getSpreadDescription()}`)
                     .addFields(fields)
                     .setThumbnail(user.displayAvatarURL());
                 const shareButton = new ButtonBuilder()
@@ -198,9 +187,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     });
                     
                     if (interaction.channel?.isSendable()) {
-                        const fields = reading.drawn.map((card, idx) => {
-                            return { name: `Card ${idx + 1}`, value: `${card.name}: *${card.description}*` };
-                        });
                         const canvasWidth = 700;
                         const canvas = Canvas.createCanvas(canvasWidth, 500);
                         const context = canvas.getContext("2d");
@@ -215,6 +201,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
                             count += 1;
                         }
                         const attachment = new AttachmentBuilder(await canvas.encode("png"), { name: "tarot-reading.png" });
+                        const cardMeanings = reading.getSpreadMeanings();
+                        const fields = reading.drawn.map((card, idx) => {
+                            return { name: `${cardMeanings[idx] || `Card ${idx + 1}`}`, value: `${card.name}: *${card.description}*` };
+                        });
                         const embed = new EmbedBuilder()
                             .setColor(0x0099FF)
                             .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
@@ -227,7 +217,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                             files: [attachment]
                         });
                     }
-                    delete readings[user.id]; // Clear the reading for the user
+                    delete readings[reading.id];
                 } else {
                     await interaction.reply({ content: "No reading found for this user.", ephemeral: true });
                 }
