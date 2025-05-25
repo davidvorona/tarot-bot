@@ -1,4 +1,4 @@
-import { Client, IntentsBitField, Events, REST, Routes, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, TextInputStyle, ModalActionRowComponentBuilder, TextInputBuilder, ModalBuilder } from "discord.js";
+import { Client, IntentsBitField, Events, REST, Routes, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, TextInputStyle, ModalActionRowComponentBuilder, TextInputBuilder, ModalBuilder, TextChannel, Guild } from "discord.js";
 import Canvas from "@napi-rs/canvas";
 import path from "path";
 import { parseJson, readFile } from "./util";
@@ -19,6 +19,10 @@ const client = new Client({
     ]
 });
 
+let mcmpGuild: Guild;
+const MCMP_GUILD_ID = "403100419250978817";
+const ASTRONOMY_CHANNEL_ID = "1356449314544816148";
+
 client.on(Events.ClientReady, async () => {
     try {
         if (client.user) {
@@ -30,6 +34,7 @@ client.on(Events.ClientReady, async () => {
                 { body: commands }
             );
         }
+        mcmpGuild = await client.guilds.fetch(MCMP_GUILD_ID);
     } catch (err) {
         console.error(err);
     }
@@ -45,6 +50,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
             }
             if (interaction.commandName === "reading") {
                 const user = interaction.options.getUser("user", true);
+
+                const astronomyChannel = await mcmpGuild.channels.fetch(ASTRONOMY_CHANNEL_ID) as TextChannel;
+                if (astronomyChannel && astronomyChannel.members
+                    .find(m => m.user.id === interaction.user.id || m.user.id === user.id)) {
+                    await interaction.reply({
+                        content: `The cold, lifeless stars of ${astronomyChannel} prevent the Tarot from reaching out to you or the subject.`,
+                        ephemeral: true
+                    });
+                    return;
+                }
 
                 const reading = new Reading(user.id);
                 readings[reading.id] = reading;
