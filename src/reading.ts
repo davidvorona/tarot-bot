@@ -378,7 +378,8 @@ const tarotDeck = [
     },
     {
         name: "Knight of Pentacles",
-        description: "Stability, progress, determination, diligence, expansion."
+        description: "Stability, progress, determination, diligence, expansion.",
+        image: "Knight-of-pentacles.jpg",
     },
     {
         name: "Queen of Pentacles",
@@ -410,7 +411,7 @@ export default class Reading {
     }
 
     draw() {
-        const drawnIndex = rand(this.deck.length - 1);
+        const drawnIndex = rand(this.deck.length);
         const card = this.deck[drawnIndex];
         this.drawn.push(card);
         this.deck.splice(drawnIndex, 1);
@@ -435,6 +436,8 @@ export default class Reading {
         } else if (this.drawn.length === 7) {
             cardMeanings.push("Past Influences", "Present Circumstances", "Upcoming Influences",
                 "Best Course of Action", "The Attitude of Others", "Possible Obstacles", "Final Outcome");
+        } else {
+            cardMeanings.push(...this.drawn.map((_, index) => `Card ${index + 1}`));
         }
         return cardMeanings;
     }

@@ -1,7 +1,7 @@
 import { Client, IntentsBitField, Events, REST, Routes, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, TextInputStyle, ModalActionRowComponentBuilder, TextInputBuilder, ModalBuilder, TextChannel, Guild } from "discord.js";
 import Canvas from "@napi-rs/canvas";
 import path from "path";
-import { parseJson, readFile } from "./util";
+import { getCrypticReadingPhrase, parseJson, readFile } from "./util";
 import { AuthJson } from "./types";
 import Reading from "./reading";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -51,14 +51,28 @@ client.on(Events.InteractionCreate, async (interaction) => {
             if (interaction.commandName === "reading") {
                 const user = interaction.options.getUser("user", true);
 
-                const astronomyChannel = await mcmpGuild.channels.fetch(ASTRONOMY_CHANNEL_ID) as TextChannel;
-                if (astronomyChannel && astronomyChannel.members
-                    .find(m => m.user.id === interaction.user.id || m.user.id === user.id)) {
+                if (user.id === interaction.user.id) {
                     await interaction.reply({
-                        content: `The cold, lifeless stars of ${astronomyChannel} prevent the Tarot from reaching out to you or the subject.`,
+                        content: "You cannot do a Tarot reading for yourself.",
                         ephemeral: true
                     });
                     return;
+                }
+
+                if (mcmpGuild) {
+                    try {
+                        const astronomyChannel = await mcmpGuild.channels.fetch(ASTRONOMY_CHANNEL_ID) as TextChannel;
+                        if (astronomyChannel && astronomyChannel.members
+                            .find(m => m.user.id === interaction.user.id || m.user.id === user.id)) {
+                            await interaction.reply({
+                                content: `The cold, lifeless stars of ${astronomyChannel} prevent the Tarot from reaching out to you or the subject.`,
+                                ephemeral: true
+                            });
+                            return;
+                        }
+                    } catch (err) {
+                        console.error("Error fetching astronomy channel:", err);
+                    }
                 }
 
                 const reading = new Reading(user.id);
@@ -66,9 +80,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
                 const embed = new EmbedBuilder()
                     .setColor(0x0099FF)
-                    .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
+                    .setTitle(`:sparkles: Reading for ${user.displayName} :star_and_crescent:`)
                     .setDescription("Today is a new day, full of endless possibilities. Let the Tarot guide you, " +
-                        `so you might pass on its wisdom to **${user.username}**.\nShuffle the deck to begin...`)
+                        `so you might pass on its wisdom to **${user.displayName}**.\nShuffle the deck to begin...`)
                     .setThumbnail(user.displayAvatarURL());
                 const shuffleDeckButton = new ButtonBuilder()
                     .setCustomId(`${reading.id}-shuffle`)
@@ -93,7 +107,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 if (user) {
                     const embed = new EmbedBuilder()
                         .setColor(0x0099FF)
-                        .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
+                        .setTitle(`:sparkles: Reading for ${user.displayName} :star_and_crescent:`)
                         .setDescription("The deck has been shuffled. You can now draw a card.")
                         .setThumbnail(user.displayAvatarURL());
                     const drawCardButton = new ButtonBuilder()
@@ -121,7 +135,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     const file = new AttachmentBuilder(`./assets/${card.image}`);
                     const embed = new EmbedBuilder()
                         .setColor(0x0099FF)
-                        .setTitle(`:sparkles: Your Card for ${user.username} :star_and_crescent:`)
+                        .setTitle(`:sparkles: Your Card for ${user.displayName} :star_and_crescent:`)
                         .setDescription(`You drew **${card.name}**!\n${card.description}`)
                         .setThumbnail(user.displayAvatarURL())
                         .setImage(`attachment://${card.image}`);
@@ -182,11 +196,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 if (user) {
                     const cardMeanings = reading.getSpreadMeanings();
                     const fields = reading.drawn.map((card, idx) => {
-                        return { name: `${cardMeanings[idx] || `Card ${idx + 1}`}`, value: `${card.name}: *${card.description}*` };
+                        return { name: `${cardMeanings[idx]} - **${card.name}**`, value: `*${card.description}*` };
                     });
                     const embed = new EmbedBuilder()
                         .setColor(0x0099FF)
-                        .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
+                        .setTitle(`:sparkles: Reading for ${user.displayName} :star_and_crescent:`)
                         .setDescription(`Your reading is complete. ${reading.getSpreadDescription()}`)
                         .addFields(fields)
                         .setThumbnail(user.displayAvatarURL());
@@ -211,7 +225,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 if (user) {
                     const embed = new EmbedBuilder()
                         .setColor(0x0099FF)
-                        .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
+                        .setTitle(`:sparkles: Reading for ${user.displayName} :star_and_crescent:`)
                         .setDescription("Your reading has been shared with the server.")
                         .setThumbnail(user.displayAvatarURL());
                     await interaction.update({
@@ -241,18 +255,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
                                 interpretation += ` ${reading.interpretations[idx]}`;
                             }
                             return {
-                                name: `${cardMeanings[idx] || `Card ${idx + 1}`}`,
-                                value: `${card.name}: *${interpretation}*`
+                                name: `${cardMeanings[idx]} - **${card.name}**`,
+                                value: `*${interpretation}*`
                             };
                         });
+                        const description = getCrypticReadingPhrase();
                         const embed = new EmbedBuilder()
                             .setColor(0x0099FF)
-                            .setTitle(`:sparkles: Reading for ${user.username} :star_and_crescent:`)
-                            .setDescription("Time swirls around you, and the cards lay bare your fate.")
+                            .setTitle(`:sparkles: Reading for ${user.displayName} :star_and_crescent:`)
+                            .setDescription(`*${description}*`)
                             .addFields(fields)
-                            .setThumbnail(user.displayAvatarURL());
+                            .setThumbnail(user.displayAvatarURL())
+                            .setFooter({ text: `Reading by ${interaction.user.displayName}`, iconURL: interaction.user.displayAvatarURL() });
                         await interaction.channel.send({
-                            content: `${user} *${interaction.user.username} has shared a reading with you...*`,
+                            content: `${user} *${interaction.user.displayName} has shared a reading with you...*`,
                             embeds: [embed],
                             files: [attachment]
                         });
