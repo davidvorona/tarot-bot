@@ -8,7 +8,7 @@ import Reading from "./reading";
 const commands = require("../config/commands");
 
 const authPath = path.join(__dirname, "../config/auth.json");
-const { TOKEN, CLIENT_ID, MAINTAINER_USER_ID } = parseJson(readFile(authPath)) as AuthJson;
+const { TOKEN, CLIENT_ID, MAINTAINER_USER_IDS = [] } = parseJson(readFile(authPath)) as AuthJson;
 
 // Initialize Discord REST client
 const rest = new REST().setToken(TOKEN);
@@ -63,14 +63,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
             if (interaction.commandName === "reading") {
                 const user = interaction.options.getUser("user", true);
 
-                if (interaction.user.id !== MAINTAINER_USER_ID && user.id === interaction.user.id) {
+                if (MAINTAINER_USER_IDS.includes(interaction.user.id)) {
+                    console.info(`Overriding user validation for maintainer: ${interaction.user.id}`);
+                } else if (user.id === interaction.user.id) {
                     await interaction.reply({
                         content: "You cannot do a Tarot reading for yourself.",
                         ephemeral: true
                     });
                     return;
-                }
-                if (await areUsersInAstronomyChannel(interaction.user.id, user.id)) {
+                } else if (await areUsersInAstronomyChannel(interaction.user.id, user.id)) {
                     await interaction.reply({
                         content: "The cold, lifeless stars of astronomy prevent the Tarot from reaching out to you or the subject.",
                         ephemeral: true
@@ -134,15 +135,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
                 const user = client.users.cache.get(reading.userId);
                 if (user) {
-                    if (interaction.user.id !== MAINTAINER_USER_ID && reading.userId === interaction.user.id) {
+                    if (MAINTAINER_USER_IDS.includes(interaction.user.id)) {
+                        console.info(`Overriding user validation for maintainer: ${interaction.user.id}`);
+                    } else if (reading.userId === interaction.user.id) {
                         await interaction.reply({
                             content: "You cannot do a Tarot reading for yourself.",
                             ephemeral: true
                         });
                         return;
-                    }
-                    // Only people NOT in #astronomy can initiate a reading
-                    if (await areUsersInAstronomyChannel(interaction.user.id, user.id)) {
+                    } else if (await areUsersInAstronomyChannel(interaction.user.id, user.id)) {
                         await interaction.reply({
                             content: "The cold, lifeless stars of astronomy prevent the Tarot from reaching out to you or the subject.",
                             ephemeral: true
