@@ -398,15 +398,18 @@ export default class Reading {
 
     userId: string;
 
+    readerUserId: string;
+
     deck: typeof tarotDeck;
 
     drawn: typeof tarotDeck = [];
 
     interpretations: Record<number, string> = {};
 
-    constructor(userId: string) {
+    constructor(userId: string, readerUserId: string) {
         this.id = `r_${Date.now().toString()}`;
         this.userId = userId;
+        this.readerUserId = readerUserId;
         this.deck = [...tarotDeck];
     }
 

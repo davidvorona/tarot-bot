@@ -8,10 +8,18 @@ module.exports = [
     },
     new SlashCommandBuilder()
         .setName("reading")
-        .setDescription("Initiate a reading session")
+        .setDescription("Start a reading")
         .addUserOption(option =>
             option.setName("user")
                 .setDescription("Who is the subject of the reading?")
+                .setRequired(true)
+        ),
+    new SlashCommandBuilder()
+        .setName("request")
+        .setDescription("Request a reading")
+        .addStringOption(option =>
+            option.setName("reason")
+                .setDescription("What answer(s) do you seek?")
                 .setRequired(true)
         )
 ];

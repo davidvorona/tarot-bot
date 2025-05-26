@@ -8,7 +8,7 @@ import Reading from "./reading";
 const commands = require("../config/commands");
 
 const authPath = path.join(__dirname, "../config/auth.json");
-const { TOKEN, CLIENT_ID } = parseJson(readFile(authPath)) as AuthJson;
+const { TOKEN, CLIENT_ID, MAINTAINER_USER_ID } = parseJson(readFile(authPath)) as AuthJson;
 
 // Initialize Discord REST client
 const rest = new REST().setToken(TOKEN);
@@ -22,6 +22,18 @@ const client = new Client({
 let mcmpGuild: Guild;
 const MCMP_GUILD_ID = "403100419250978817";
 const ASTRONOMY_CHANNEL_ID = "1356449314544816148";
+
+async function areUsersInAstronomyChannel(...userIds: string[]): Promise<boolean> {
+    if (mcmpGuild) {
+        try {
+            const astronomyChannel = await mcmpGuild.channels.fetch(ASTRONOMY_CHANNEL_ID) as TextChannel;
+            return astronomyChannel && astronomyChannel.members.find(m => userIds.includes(m.user.id)) !== undefined;
+        } catch (err) {
+            console.error("Error fetching astronomy channel:", err);
+        }
+    }
+    return false;
+}
 
 client.on(Events.ClientReady, async () => {
     try {
@@ -51,31 +63,22 @@ client.on(Events.InteractionCreate, async (interaction) => {
             if (interaction.commandName === "reading") {
                 const user = interaction.options.getUser("user", true);
 
-                if (user.id === interaction.user.id) {
+                if (interaction.user.id !== MAINTAINER_USER_ID && user.id === interaction.user.id) {
                     await interaction.reply({
                         content: "You cannot do a Tarot reading for yourself.",
                         ephemeral: true
                     });
                     return;
                 }
-
-                if (mcmpGuild) {
-                    try {
-                        const astronomyChannel = await mcmpGuild.channels.fetch(ASTRONOMY_CHANNEL_ID) as TextChannel;
-                        if (astronomyChannel && astronomyChannel.members
-                            .find(m => m.user.id === interaction.user.id || m.user.id === user.id)) {
-                            await interaction.reply({
-                                content: `The cold, lifeless stars of ${astronomyChannel} prevent the Tarot from reaching out to you or the subject.`,
-                                ephemeral: true
-                            });
-                            return;
-                        }
-                    } catch (err) {
-                        console.error("Error fetching astronomy channel:", err);
-                    }
+                if (await areUsersInAstronomyChannel(interaction.user.id, user.id)) {
+                    await interaction.reply({
+                        content: "The cold, lifeless stars of astronomy prevent the Tarot from reaching out to you or the subject.",
+                        ephemeral: true
+                    });
+                    return;
                 }
 
-                const reading = new Reading(user.id);
+                const reading = new Reading(user.id, interaction.user.id);
                 readings[reading.id] = reading;
 
                 const embed = new EmbedBuilder()
@@ -98,9 +101,78 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     ephemeral: true
                 });
             }
+            if (interaction.commandName === "request") {
+                const reason = interaction.options.getString("reason", true);
+
+                const embed = new EmbedBuilder()
+                    .setColor(0x0099FF)
+                    .setTitle(`:sparkles: Request from ${interaction.user.displayName} :star_and_crescent:`)
+                    .setDescription("A dear friend requests a reading of the Tarot. " +
+                        `Take deck in hand and help **${interaction.user.displayName}** find insight and clarity.`)
+                    .addFields({ name: "Reason", value: `"${reason}"` })
+                    .setThumbnail(interaction.user.displayAvatarURL());
+                const startAReading = new ButtonBuilder()
+                    .setCustomId(`${interaction.user.id}-response`)
+                    .setLabel("Start a Reading")
+                    .setStyle(ButtonStyle.Primary);
+                const row = new ActionRowBuilder<ButtonBuilder>()
+                    .addComponents(
+                        startAReading
+                    );
+                await interaction.reply({
+                    embeds: [embed],
+                    components: [row]
+                });
+            }
         }
         if (interaction.isButton()) {
             const [readingId, action] = interaction.customId.split("-");
+            if (action === "response") {
+                const userId = readingId;
+                const reading = new Reading(userId, interaction.user.id);
+                readings[reading.id] = reading;
+
+                const user = client.users.cache.get(reading.userId);
+                if (user) {
+                    if (interaction.user.id !== MAINTAINER_USER_ID && reading.userId === interaction.user.id) {
+                        await interaction.reply({
+                            content: "You cannot do a Tarot reading for yourself.",
+                            ephemeral: true
+                        });
+                        return;
+                    }
+                    // Only people NOT in #astronomy can initiate a reading
+                    if (await areUsersInAstronomyChannel(interaction.user.id, user.id)) {
+                        await interaction.reply({
+                            content: "The cold, lifeless stars of astronomy prevent the Tarot from reaching out to you or the subject.",
+                            ephemeral: true
+                        });
+                        return;
+                    }
+
+                    const embed = new EmbedBuilder()
+                        .setColor(0x0099FF)
+                        .setTitle(`:sparkles: Reading for ${user.displayName} :star_and_crescent:`)
+                        .setDescription("Today is a new day, full of endless possibilities. Let the Tarot guide you, " +
+                            `so you might pass on its wisdom to **${user.displayName}**.\nShuffle the deck to begin...`)
+                        .setThumbnail(interaction.user.displayAvatarURL());
+                    const shuffleDeckButton = new ButtonBuilder()
+                        .setCustomId(`${reading.id}-shuffle`)
+                        .setLabel("Shuffle the Deck")
+                        .setStyle(ButtonStyle.Primary);
+                    const row = new ActionRowBuilder<ButtonBuilder>()
+                        .addComponents(
+                            shuffleDeckButton
+                        );
+                    await interaction.reply({
+                        embeds: [embed],
+                        components: [row],
+                        ephemeral: true
+                    });
+                } else {
+                    await interaction.reply({ content: "User not found.", ephemeral: true });
+                }
+            }
             if (action === "shuffle") {
                 const reading = readings[readingId];
                 const user = client.users.cache.get(reading.userId);
