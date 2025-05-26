@@ -178,10 +178,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 const reading = readings[readingId];
                 const user = client.users.cache.get(reading.userId);
                 if (user) {
+                    const file = new AttachmentBuilder("./assets/tarot-card-back.png");
                     const embed = new EmbedBuilder()
                         .setColor(0x0099FF)
                         .setTitle(`:sparkles: Reading for ${user.displayName} :star_and_crescent:`)
                         .setDescription("The deck has been shuffled. You can now draw a card.")
+                        .setImage("attachment://tarot-card-back.png")
                         .setThumbnail(user.displayAvatarURL());
                     const drawCardButton = new ButtonBuilder()
                         .setCustomId(`${reading.id}-drawing`)
@@ -193,7 +195,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
                         );
                     await interaction.update({
                         embeds: [embed],
-                        components: [row]
+                        components: [row],
+                        files: [file]
                     });
                 } else {
                     await interaction.reply({ content: "User not found.", ephemeral: true });
@@ -269,7 +272,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 if (user) {
                     const cardMeanings = reading.getSpreadMeanings();
                     const fields = reading.drawn.map((card, idx) => {
-                        return { name: `${cardMeanings[idx]} - **${card.name}**`, value: `*${card.description}*` };
+                        let interpretation = card.description;
+                        if (reading.interpretations[idx]) {
+                            interpretation += ` ${reading.interpretations[idx]}`;
+                        }
+                        return {
+                            name: `${cardMeanings[idx]} - **${card.name}**`,
+                            value: `*${interpretation}*`
+                        };
                     });
                     const embed = new EmbedBuilder()
                         .setColor(0x0099FF)
@@ -311,41 +321,85 @@ client.on(Events.InteractionCreate, async (interaction) => {
                         const canvas = Canvas.createCanvas(canvasWidth, 500);
                         const context = canvas.getContext("2d");
 
-                        let count = 0;
-                        for (const card of reading.drawn) {
+                        for (let i = 0; i < reading.drawn.length; i++) {
                             const avatarWidth = 278;
-                            const avatar = await Canvas.loadImage(`./assets/${card.image}`);
-                            const x = 25 + (count * ((canvasWidth - avatarWidth) / reading.drawn.length));
+                            const avatar = await Canvas.loadImage("./assets/tarot-card-back.png");
+                            const x = 25 + (i * ((canvasWidth - avatarWidth) / reading.drawn.length));
                             const y = 25;
                             context.drawImage(avatar, x, y, avatarWidth, 450);
-                            count += 1;
                         }
                         const attachment = new AttachmentBuilder(await canvas.encode("png"), { name: "tarot-reading.png" });
-                        const cardMeanings = reading.getSpreadMeanings();
-                        const fields = reading.drawn.map((card, idx) => {
-                            let interpretation = card.description;
-                            if (reading.interpretations[idx]) {
-                                interpretation += ` ${reading.interpretations[idx]}`;
-                            }
-                            return {
-                                name: `${cardMeanings[idx]} - **${card.name}**`,
-                                value: `*${interpretation}*`
-                            };
-                        });
                         const description = getCrypticReadingPhrase();
                         const embed = new EmbedBuilder()
                             .setColor(0x0099FF)
                             .setTitle(`:sparkles: Reading for ${user.displayName} :star_and_crescent:`)
                             .setDescription(`*${description}*`)
-                            .addFields(fields)
                             .setThumbnail(user.displayAvatarURL())
                             .setFooter({ text: `Reading by ${interaction.user.displayName}`, iconURL: interaction.user.displayAvatarURL() });
+                        const showButton = new ButtonBuilder()
+                            .setCustomId(`${reading.id}-showfull`)
+                            .setLabel("Reveal Full Reading")
+                            .setStyle(ButtonStyle.Success);
+                        const row = new ActionRowBuilder<ButtonBuilder>()
+                            .addComponents(showButton);
                         await interaction.channel.send({
                             content: `${user} *${interaction.user.displayName} has shared a reading with you...*`,
                             embeds: [embed],
-                            files: [attachment]
+                            files: [attachment],
+                            components: [row]
                         });
                     }
+                } else {
+                    await interaction.reply({ content: "User not found.", ephemeral: true });
+                }
+            }
+            if (action === "showfull") {
+                const reading = readings[readingId];
+                if (reading.userId !== interaction.user.id) {
+                    await interaction.reply({ content: "You cannot reveal this reading.", ephemeral: true });
+                    return;
+                }
+                const user = client.users.cache.get(reading.userId);
+                if (user) {
+                    const canvasWidth = 700;
+                    const canvas = Canvas.createCanvas(canvasWidth, 500);
+                    const context = canvas.getContext("2d");
+
+                    let count = 0;
+                    for (const card of reading.drawn) {
+                        const avatarWidth = 278;
+                        const avatar = await Canvas.loadImage(`./assets/${card.image}`);
+                        const x = 25 + (count * ((canvasWidth - avatarWidth) / reading.drawn.length));
+                        const y = 25;
+                        context.drawImage(avatar, x, y, avatarWidth, 450);
+                        count += 1;
+                    }
+                    const attachment = new AttachmentBuilder(await canvas.encode("png"), { name: "tarot-reading.png" });
+                    const cardMeanings = reading.getSpreadMeanings();
+                    const fields = reading.drawn.map((card, idx) => {
+                        let interpretation = card.description;
+                        if (reading.interpretations[idx]) {
+                            interpretation += ` ${reading.interpretations[idx]}`;
+                        }
+                        return {
+                            name: `${cardMeanings[idx]} - **${card.name}**`,
+                            value: `*${interpretation}*`
+                        };
+                    });
+                    const description = getCrypticReadingPhrase();
+                    const embed = new EmbedBuilder()
+                        .setColor(0x0099FF)
+                        .setTitle(`:sparkles: Reading for ${user.displayName} :star_and_crescent:`)
+                        .setDescription(`*${description}*`)
+                        .addFields(fields)
+                        .setThumbnail(user.displayAvatarURL())
+                        .setFooter({ text: `Reading by ${interaction.user.displayName}`, iconURL: interaction.user.displayAvatarURL() });
+                    await interaction.update({
+                        embeds: [embed],
+                        files: [attachment],
+                        components: []
+                    });
+
                     delete readings[reading.id];
                 } else {
                     await interaction.reply({ content: "User not found.", ephemeral: true });
