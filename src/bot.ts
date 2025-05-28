@@ -1,4 +1,4 @@
-import { Client, IntentsBitField, Events, REST, Routes, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, TextInputStyle, ModalActionRowComponentBuilder, TextInputBuilder, ModalBuilder, TextChannel, Guild } from "discord.js";
+import { Client, IntentsBitField, Events, REST, Routes, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, AttachmentBuilder, TextInputStyle, ModalActionRowComponentBuilder, TextInputBuilder, ModalBuilder, TextChannel, Guild, MessageFlags } from "discord.js";
 import Canvas from "@napi-rs/canvas";
 import path from "path";
 import { getCrypticReadingPhrase, parseJson, readFile } from "./util";
@@ -68,13 +68,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 } else if (user.id === interaction.user.id) {
                     await interaction.reply({
                         content: "You cannot do a Tarot reading for yourself.",
-                        ephemeral: true
+                        flags: [MessageFlags.Ephemeral]
                     });
                     return;
                 } else if (await areUsersInAstronomyChannel(interaction.user.id, user.id)) {
                     await interaction.reply({
                         content: "The cold, lifeless stars of astronomy prevent the Tarot from reaching out to you or the subject.",
-                        ephemeral: true
+                        flags: [MessageFlags.Ephemeral]
                     });
                     return;
                 }
@@ -99,7 +99,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 await interaction.reply({
                     embeds: [embed],
                     components: [row],
-                    ephemeral: true
+                    flags: [MessageFlags.Ephemeral]
                 });
             }
             if (interaction.commandName === "request") {
@@ -140,13 +140,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     } else if (reading.userId === interaction.user.id) {
                         await interaction.reply({
                             content: "You cannot do a Tarot reading for yourself.",
-                            ephemeral: true
+                            flags: [MessageFlags.Ephemeral]
                         });
                         return;
                     } else if (await areUsersInAstronomyChannel(interaction.user.id, user.id)) {
                         await interaction.reply({
                             content: "The cold, lifeless stars of astronomy prevent the Tarot from reaching out to you or the subject.",
-                            ephemeral: true
+                            flags: [MessageFlags.Ephemeral]
                         });
                         return;
                     }
@@ -168,10 +168,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     await interaction.reply({
                         embeds: [embed],
                         components: [row],
-                        ephemeral: true
+                        flags: [MessageFlags.Ephemeral]
                     });
                 } else {
-                    await interaction.reply({ content: "User not found.", ephemeral: true });
+                    await interaction.reply({ content: "User not found.", flags: [MessageFlags.Ephemeral] });
                 }
             }
             if (action === "shuffle") {
@@ -199,7 +199,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                         files: [file]
                     });
                 } else {
-                    await interaction.reply({ content: "User not found.", ephemeral: true });
+                    await interaction.reply({ content: "User not found.", flags: [MessageFlags.Ephemeral] });
                 }
             }
             if (action === "drawing") {
@@ -241,7 +241,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                         files: [file]
                     });
                 } else {
-                    await interaction.reply({ content: "User not found.", ephemeral: true });
+                    await interaction.reply({ content: "User not found.", flags: [MessageFlags.Ephemeral] });
                 }
             }
             if (action === "interpret") {
@@ -263,7 +263,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
                     await interaction.showModal(modal);
                 } else {
-                    await interaction.reply({ content: "User not found.", ephemeral: true });
+                    await interaction.reply({ content: "User not found.", flags: [MessageFlags.Ephemeral] });
                 } 
             }
             if (action === "finished") {
@@ -299,7 +299,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                         files: [],
                     });
                 } else {
-                    await interaction.reply({ content: "User not found.", ephemeral: true });
+                    await interaction.reply({ content: "User not found.", flags: [MessageFlags.Ephemeral] });
                 }
             }
             if (action === "share") {
@@ -350,13 +350,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
                         });
                     }
                 } else {
-                    await interaction.reply({ content: "User not found.", ephemeral: true });
+                    await interaction.reply({ content: "User not found.", flags: [MessageFlags.Ephemeral] });
                 }
             }
             if (action === "showfull") {
                 const reading = readings[readingId];
                 if (reading.userId !== interaction.user.id) {
-                    await interaction.reply({ content: "You cannot reveal this reading.", ephemeral: true });
+                    await interaction.reply({ content: "You cannot reveal this reading.", flags: [MessageFlags.Ephemeral] });
                     return;
                 }
                 const user = client.users.cache.get(reading.userId);
@@ -386,6 +386,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                             value: `*${interpretation}*`
                         };
                     });
+                    const reader = client.users.cache.get(reading.readerUserId);
                     const description = getCrypticReadingPhrase();
                     const embed = new EmbedBuilder()
                         .setColor(0x0099FF)
@@ -393,7 +394,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                         .setDescription(`*${description}*`)
                         .addFields(fields)
                         .setThumbnail(user.displayAvatarURL())
-                        .setFooter({ text: `Reading by ${interaction.user.displayName}`, iconURL: interaction.user.displayAvatarURL() });
+                        .setFooter({ text: `Reading by ${reader?.displayName || "Unknown"}`, iconURL: reader?.displayAvatarURL() });
                     await interaction.update({
                         embeds: [embed],
                         files: [attachment],
@@ -402,7 +403,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
                     delete readings[reading.id];
                 } else {
-                    await interaction.reply({ content: "User not found.", ephemeral: true });
+                    await interaction.reply({ content: "User not found.", flags: [MessageFlags.Ephemeral] });
                 }
             }
         }
@@ -413,9 +414,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 const drawnIndex = interaction.customId.split("-")[2];
                 const interpretation = interaction.fields.getTextInputValue(`${reading.id}-interpretation`);
                 reading.interpret(parseInt(drawnIndex), interpretation);
-                await interaction.reply({ content: "*The card speaks to you, and you listen...*", ephemeral: true });
+                await interaction.reply({ content: "*The card speaks to you, and you listen...*", flags: [MessageFlags.Ephemeral] });
             } else {
-                await interaction.reply({ content: "User not found.", ephemeral: true });
+                await interaction.reply({ content: "User not found.", flags: [MessageFlags.Ephemeral] });
             }
         }
     } catch (err) {
@@ -423,9 +424,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
         if (interaction.isAutocomplete()) {
             await interaction.respond([]);
         } else if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content: "An error occurred while processing your request.", ephemeral: true });
+            await interaction.followUp({ content: "An error occurred while processing your request.", flags: [MessageFlags.Ephemeral] });
         } else {
-            await interaction.reply({ content: "An error occurred while processing your request.", ephemeral: true });
+            await interaction.reply({ content: "An error occurred while processing your request.", flags: [MessageFlags.Ephemeral] });
         }
     }
 });
